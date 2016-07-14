@@ -3,12 +3,11 @@ import tkinter.ttk as ttk
 import threading
 import time
 import queue
-import random
 import serial
 #import string
 
 import sys
-from tkinter.tix import COLUMN
+#from tkinter.tix import COLUMN
 
 
 serialPort = 'COM5'
@@ -70,23 +69,15 @@ class Application(tk.Frame):
             
             try: 
                 msg = self.tagqueue.get(0)
-                #print("mesgreceived  {}".format(msg))
-                
-                
+                #print("mesgreceived  {}".format(msg))               
                 self.uuid.config(text=msg, width=100)
-                # Check contents of message and do whatever is needed. As a
-                # simple test, print it (in real life, you would
-                # suitably update the GUI's display in a richer fashion).
-                print(msg)
+
+                
             except:
                 # just on general principles, although we don't
-                # expect this branch to be taken in this case
-                
+                # expect this branch to be taken in this case                
                 raise
             
-    #def say_hi(self):
-    #   print("hi there, everyone!")
-
     
     def ActivateReading(self, event):
         if(event.widget.tab(event.widget.index("current"), "text") == "Read"):
@@ -190,47 +181,62 @@ class SerialManager:
             time.sleep(3) # creating connection will reset arduino, need to wait for reset complete.
         except serial.SerialException as e:
             sys.stderr.write('Could not open serial port : {}\n'.format(e))
+            raise
    
     
     
     def ReadTag(self):
         # do stuff to read tags from the reader and put them in the queue         
-        self.ser.flushInput()
-        self.ser.write(b'read_tag\n') 
-        time.sleep(0.2)
-        result = self.ser.readline()
-        print(result)
-        if(result.find(b'Sucess:') >= 0):  
-            temp = result.lstrip(b'Sucess:')            
-            return temp.rstrip(b'\n')
-        elif(result.find(b'no tag') >= 0):
-            return(b'No Card Detected')
+        if (self.ConnectionTest()):            
+            self.ser.flushInput()
+            self.ser.write(b'read_tag\n') 
+            time.sleep(0.2)
+            result = self.ser.readline()
+            #print(result)
+            if(result.find(b'Sucess:') >= 0):  
+                temp = result.lstrip(b'Sucess:')            
+                return temp.rstrip(b'\n')
+            elif(result.find(b'no tag') >= 0):
+                return(b'No Card Detected')
+            else:
+                return (b'read failed')
         else:
-            return (b'read failed')
+            return(b'Reader not connected')
     
 
     def WriteTag(self, texttowrite):       
-        
+        if (self.ConnectionTest()):        
+            self.ser.flushInput()
+            print(b'write_tag:' + texttowrite + b'\n')
+            self.ser.write(b'write_tag:' + texttowrite + b'\n')       
+            time.sleep(5)
+            result = self.ser.readline()
+            print(result)
+            if(result.find(b'Success') >= 0):              
+                return "Write Successful"
+            else:              
+                return "Write failed"
+        else:
+            return(b'Reader not connected')
+                           
+    def ConnectionTest(self):
         self.ser.flushInput()
-        print(b'write_tag:' + texttowrite + b'\n')
-        self.ser.write(b'write_tag:' + texttowrite + b'\n')       
-        time.sleep(5)
+        self.ser.write(b'connection_test\n')
+        time.sleep(0.1)
         result = self.ser.readline()
         print(result)
-        if(result.find(b'Success') >= 0):              
-            return "Write Successful"
+        if(result.find(b'ok') >= 0):              
+            return 1
         else:              
-            return "Write failed"
-                            
-
+            return 0
+        
     def Close(self):
         print("closing serial")
         self.ser.close()
 
 
-rand = random.Random(  )
-root = tk.Tk()
 
+root = tk.Tk()
 client = ThreadedClient(root)
 
 def on_closing():    

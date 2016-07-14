@@ -75,7 +75,9 @@ void loop(void) {
         }
            
       }
-         
+      if(inputString.indexOf("connection_test") >= 0){
+        Serial.write("ok");         
+      }
       inputString = "";
       stringComplete = false;
   }
