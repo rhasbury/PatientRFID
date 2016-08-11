@@ -7,6 +7,8 @@ import serial
 #import string
 
 import sys
+from tkinter.constants import VERTICAL
+from test.test_tcl import TkinterTest
 #from tkinter.tix import COLUMN
 
 
@@ -26,23 +28,30 @@ class Application(tk.Frame):
         
 
     def createWidgets(self):
+        #ttk.Style().configure("TButton", padding=(0, 5, 0, 5), font='serif 10')
+        
+        
         # Create notebook and read & write frames
-        self.notebook = ttk.Notebook(self, width=300, height=150)
+        self.notebook = ttk.Notebook(self, width=500, height=400)
         self.frame1 = ttk.Frame(self.notebook)
         self.frame2 = ttk.Frame(self.notebook)
+        self.frame3 = ttk.Frame(self.notebook)
+        
+        #self.frame1.rowconfigure(0, weight=1)        
+        #self.frame1.columnconfigure(0, weight=1)
+        #self.frame2.rowconfigure(0, weight=1)
+        #self.frame2.columnconfigure(0, weight=1)
         self.notebook.add(self.frame1, text='Read')
         self.notebook.add(self.frame2, text='Write')
+        self.notebook.add(self.frame3, text='Admin')        
         self.notebook.bind_all("<<NotebookTabChanged>>", self.ActivateReading)
         self.notebook.grid(row=0, column=0)
        
         # Add widgets for write frame
-
-        
         self.namelab = ttk.Label(self.frame2, text="Patient Name :  ")        
         self.namelab.grid(row=0, column=0)
         self.name = ttk.Entry(self.frame2, text="bbbb")
         self.name.grid(row=0, column=1)
-
         self.writetag = tk.Button(self.frame2)
         self.writetag["text"] = "Write Name to Card"
         self.writetag["command"] = self.WritePatientToCard
@@ -58,9 +67,61 @@ class Application(tk.Frame):
         # Add widgets for read frame
         self.uuidlab = ttk.Label(self.frame1, text="Name On Card  :  ")        
         self.uuidlab.grid(row=0, column=0)
-        self.uuid = ttk.Label(self.frame1, text="----")
-        self.uuid.grid(row=0, column=1)
+        self.uuid = ttk.Label(self.frame1, text="----", width=75)
+        self.uuid.grid(row=0, column=1, columnspan=3)
+        self.pendingreglist = tk.Listbox(self.frame1)
+        self.pendingreglist.grid(row=1, column=0)
+        self.registeredlist = tk.Listbox(self.frame1)
+        self.registeredlist.grid(row=1, column=2)
+        self.registerpatient = tk.Button(self.frame1)
+        self.registerpatient["text"] = "Register Patient"
+        self.registerpatient["command"] = self.RegisterPatient
+        self.registerpatient.grid(row=1, column=1)
+        
+        
+        # Add widgets for admin frame
+        self.editframe = ttk.Frame(self.frame3, borderwidth=5, relief="raised")
+        self.editframe.grid(row=0, column=1, sticky="W")        
+        self.searchframe = ttk.Frame(self.frame3)
+        self.searchframe.grid(row=0, column=0)
+    
+    
 
+        self.searchentry = tk.Entry(self.searchframe)
+        self.searchentry.grid(row=0, column=0, pady=5 )
+        
+        self.searchbutton = tk.Button(self.searchframe, text="Search", command=self.SearchForPatient)
+        self.searchbutton.grid(row=0, column=1, padx=5, pady=5) 
+        
+        self.searchbox = tk.Listbox(self.searchframe)
+        self.searchbox.grid(row=1, column=0, columnspan=2, sticky="w")
+              
+
+        
+
+        
+        self.namebox = tk.Entry(self.editframe, state="disabled")
+        self.dobbox = tk.Entry(self.editframe, state="disabled")
+        self.pidbox = tk.Entry(self.editframe, state="disabled")
+        self.photobox = tk.Entry(self.editframe, state="disabled")
+        self.namebox.grid(row=0, column=0, padx=5, pady=5)
+        self.dobbox.grid(row=1, column=0, padx=5, pady=5)
+        self.pidbox.grid(row=2, column=0, padx=5, pady=5)
+        self.photobox.grid(row=0, column=1, columnspan=2, padx=5, pady=5)
+        
+                
+        self.createnewbutton = tk.Button(self.editframe, text="Create New", command=self.CreateNewEntry)
+        self.lockunlockbutton = tk.Button(self.editframe, text="Lock/Unlock", command=self.LockUnlock)
+        self.savebutton = tk.Button(self.editframe, text="Save", command=self.SaveEntry)
+        self.deletebutton = tk.Button(self.editframe, text="Delete", command=self.DeleteEntry)
+        
+        self.createnewbutton.grid(row=1, column=1, padx=5, pady=5)
+        self.lockunlockbutton.grid(row=3, column=0, padx=5, pady=5)
+        self.savebutton.grid(row=3, column=1, padx=5, pady=5)
+        self.deletebutton.grid(row=3, column=2, padx=5, pady=5)
+        
+        
+    
     
     
     def processIncoming(self):
@@ -70,7 +131,7 @@ class Application(tk.Frame):
             try: 
                 msg = self.tagqueue.get(0)
                 #print("mesgreceived  {}".format(msg))               
-                self.uuid.config(text=msg, width=100)
+                self.uuid.config(text=msg) #, width=100)
 
                 
             except:
@@ -97,7 +158,28 @@ class Application(tk.Frame):
             self.statuslab["fg"] = "green"
         else:
             self.statuslab["text"] = "Write failed"
-            self.statuslab["fg"] = "red"    
+            self.statuslab["fg"] = "red"
+            
+    def RegisterPatient(self):
+        return("done")    
+
+    def SearchForPatient(self):
+        return("done")
+        
+        
+        
+    def LockUnlock(self):
+        return("done")
+        
+        
+    def SaveEntry(self):
+        return("done")
+    
+    def DeleteEntry(self):
+        return("done")
+        
+    def CreateNewEntry(self):
+        return("done")
         
 class ThreadedClient:
     def __init__(self, master):
