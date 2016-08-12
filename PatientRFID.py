@@ -7,9 +7,23 @@ import serial
 #import string
 
 import sys
-from tkinter.constants import VERTICAL
-from test.test_tcl import TkinterTest
+#from tkinter.constants import VERTICAL
+#from test.test_tcl import TkinterTest
 #from tkinter.tix import COLUMN
+
+import pymysql.cursors
+
+
+
+
+
+dbhost='localhost'
+dbuser='rfid'
+dbpassword='rfid'
+dbDB='patientdat',
+dbcharset='utf8mb4'
+
+editlocked = True
 
 
 serialPort = 'COM5'
@@ -29,8 +43,7 @@ class Application(tk.Frame):
 
     def createWidgets(self):
         #ttk.Style().configure("TButton", padding=(0, 5, 0, 5), font='serif 10')
-        
-        
+                
         # Create notebook and read & write frames
         self.notebook = ttk.Notebook(self, width=500, height=400)
         self.frame1 = ttk.Frame(self.notebook)
@@ -56,8 +69,7 @@ class Application(tk.Frame):
         self.writetag["text"] = "Write Name to Card"
         self.writetag["command"] = self.WritePatientToCard
         self.writetag.grid(row=3, column=1)
-        self.statuslab = ttk.Label(self.frame2, text=" Idle  ")        
-        self.statuslab.grid(row=2, column=1)
+
         
         
         # Add quit button to main display.
@@ -81,12 +93,10 @@ class Application(tk.Frame):
         
         # Add widgets for admin frame
         self.editframe = ttk.Frame(self.frame3, borderwidth=5, relief="raised")
-        self.editframe.grid(row=0, column=1, sticky="W")        
+        self.editframe.grid(row=1, column=0, columnspan=2, sticky="W")        
         self.searchframe = ttk.Frame(self.frame3)
         self.searchframe.grid(row=0, column=0)
     
-    
-
         self.searchentry = tk.Entry(self.searchframe)
         self.searchentry.grid(row=0, column=0, pady=5 )
         
@@ -94,35 +104,128 @@ class Application(tk.Frame):
         self.searchbutton.grid(row=0, column=1, padx=5, pady=5) 
         
         self.searchbox = tk.Listbox(self.searchframe)
+        self.searchbox.bind("<<ListboxSelect>>", self.ListBoxSelect) 
         self.searchbox.grid(row=1, column=0, columnspan=2, sticky="w")
+    
+        self.statuslab = ttk.Label(self.searchframe, text=" Idle  ")        
+        self.statuslab.grid(row=2, column=1)
+    
               
 
+        self.namelab_edit = ttk.Label(self.editframe, text="Patient Name :  ")
+        self.emaillab_edit = ttk.Label(self.editframe, text="Patient Email :  ")
+        self.pidab_edit = ttk.Label(self.editframe, text="Patient ID :  ")         
+        self.firstnamebox = tk.Entry(self.editframe, state="disabled")
+        self.lastnamebox = tk.Entry(self.editframe, state="disabled")
+        self.pidbox = tk.Entry(self.editframe, state="readonly")
+        self.emailbox = tk.Entry(self.editframe, state="disabled", width=45)
         
-
+        self.firstnamebox.grid(row=0, column=1, padx=5, pady=5)
+        self.lastnamebox.grid(row=0, column=2, padx=5, pady=5)
+        self.pidbox.grid(row=2, column=1, padx=5, pady=5)
+        self.emailbox.grid(row=1, column=1, columnspan=2, padx=5, pady=5)
+        self.namelab_edit.grid(row=0, column=0)
+        self.emaillab_edit.grid(row=1, column=0)
+        self.pidab_edit.grid(row=2, column=0)
         
-        self.namebox = tk.Entry(self.editframe, state="disabled")
-        self.dobbox = tk.Entry(self.editframe, state="disabled")
-        self.pidbox = tk.Entry(self.editframe, state="disabled")
-        self.photobox = tk.Entry(self.editframe, state="disabled")
-        self.namebox.grid(row=0, column=0, padx=5, pady=5)
-        self.dobbox.grid(row=1, column=0, padx=5, pady=5)
-        self.pidbox.grid(row=2, column=0, padx=5, pady=5)
-        self.photobox.grid(row=0, column=1, columnspan=2, padx=5, pady=5)
-        
-                
         self.createnewbutton = tk.Button(self.editframe, text="Create New", command=self.CreateNewEntry)
         self.lockunlockbutton = tk.Button(self.editframe, text="Lock/Unlock", command=self.LockUnlock)
         self.savebutton = tk.Button(self.editframe, text="Save", command=self.SaveEntry)
         self.deletebutton = tk.Button(self.editframe, text="Delete", command=self.DeleteEntry)
+        self.writetagbutton = tk.Button(self.editframe, text="Write Tag", command=self.WriteTag)
         
-        self.createnewbutton.grid(row=1, column=1, padx=5, pady=5)
+        self.createnewbutton.grid(row=2, column=2, padx=5, pady=5)
         self.lockunlockbutton.grid(row=3, column=0, padx=5, pady=5)
         self.savebutton.grid(row=3, column=1, padx=5, pady=5)
         self.deletebutton.grid(row=3, column=2, padx=5, pady=5)
+        self.writetagbutton.grid(row=3, column=3, padx=5, pady=5)
         
         
+        self.PopluateListBox()
+        
+        
+    def PopluateListBox(self, searchstring=None):
+                
+            
+        connection = pymysql.connect(host='localhost',
+                 user='rfid',
+                 password='rfid',
+                 db='patientdat',
+                 charset='utf8mb4',
+                 cursorclass=pymysql.cursors.DictCursor)
+            
+        if(searchstring == None):        
+            try:
+                self.searchbox.delete(0, tk.END)
+            
+                with connection.cursor() as cursor: #
+                    # Read a single record
+                    sql = "SELECT * FROM patients ORDER by id DESC LIMIT 20"
+                    cursor.execute(sql)
+                    for key in cursor:
+                        if(key['firstname'] != "blank"):
+                            self.searchbox.insert(tk.END, "{}, {}   ID:{}".format(key['lastname'], key['firstname'], key['id']))
+                    
+            finally:
+                connection.close()
+        else:
+            try:
+                self.searchbox.delete(0, tk.END)
+            
+                with connection.cursor() as cursor: #
+                    # Read a single record
+                    sql = "SELECT * FROM patients WHERE (firstname LIKE '%{}%') OR (lastname LIKE '%{}%') ORDER by id DESC LIMIT 200".format(searchstring, searchstring)
+                    cursor.execute(sql)
+                    for key in cursor:
+                        if(key['firstname'] != "blank"):
+                            self.searchbox.insert(tk.END, "{}, {}   ID:{}".format(key['lastname'], key['firstname'], key['id']))
+                    
+            finally:
+                connection.close()                
+        
     
-    
+    def ListBoxSelect(self, evt):
+        box = evt.widget
+        index = int(box.curselection()[0])
+        text = box.get(index)
+        idLoc = text.find("ID:") + 3\
+        
+        if (idLoc != -1):
+            pid = int(text[idLoc:])
+            connection = pymysql.connect(host='localhost',
+                     user='rfid',
+                     password='rfid',
+                     db='patientdat',
+                     charset='utf8mb4',
+                     cursorclass=pymysql.cursors.DictCursor)
+            
+            try:  
+                with connection.cursor() as cursor: #
+                    # Read a single record
+                    sql = "SELECT * FROM patients WHERE id = {}".format(pid)
+                    cursor.execute(sql)
+                    result = cursor.fetchone()
+                    #print(result)         
+                    self.pidbox.configure(state="normal")                    
+                    self.pidbox.delete(0, tk.END)
+                    self.pidbox.insert(0, result['id'])       
+                    self.pidbox.configure(state="readonly")
+                    self.firstnamebox.configure(state="normal")
+                    self.firstnamebox .delete(0, tk.END)
+                    self.firstnamebox.insert(0, result['firstname'])       
+                    self.firstnamebox.configure(state="readonly")
+                    self.lastnamebox.configure(state="normal")
+                    self.lastnamebox.delete(0, tk.END)
+                    self.lastnamebox.insert(0, result['lastname'])       
+                    self.lastnamebox.configure(state="readonly")
+                    self.emailbox.configure(state="normal")
+                    self.emailbox.delete(0, tk.END)
+                    self.emailbox.insert(0, result['email'])       
+                    self.emailbox.configure(state="readonly")                    
+                    
+            finally:
+                connection.close()
+        
     
     def processIncoming(self):
         """Handle all messages currently in the queue, if any."""
@@ -147,6 +250,17 @@ class Application(tk.Frame):
             
         else:            
             self.cmdqueue.put("Read Disabled")
+
+    def WriteTag(self):
+        result = self.serialmgr.WriteTag(self.pidbox.get().encode('utf-8'))        
+        print("wrote: {}".format(self.pidbox.get().encode('utf-8')))
+        if(result.find("Write Successful") >= 0):                                        
+            self.statuslab["text"] = "Write Successful"
+            self.statuslab["foreground"] = "green"
+        else:
+            self.statuslab["text"] = "Write failed"
+            self.statuslab["foreground"] = "red"
+        
             
     def WritePatientToCard(self):
         
@@ -164,22 +278,103 @@ class Application(tk.Frame):
         return("done")    
 
     def SearchForPatient(self):
-        return("done")
+        self.PopluateListBox(self.searchentry.get())
+        
         
         
         
     def LockUnlock(self):
-        return("done")
+        global editlocked
+        
+        if(editlocked == True):
+            self.firstnamebox.configure(state="normal")
+            self.lastnamebox.configure(state="normal")        
+            self.emailbox.configure(state="normal")       
+            editlocked = False
+        else:
+            self.firstnamebox.configure(state="readonly")
+            self.lastnamebox.configure(state="readonly")        
+            self.emailbox.configure(state="readonly") 
+            editlocked = True           
+        
+        
         
         
     def SaveEntry(self):
-        return("done")
+        global editlocked
+        connection = pymysql.connect(host='localhost',
+                     user='rfid',
+                     password='rfid',
+                     db='patientdat',
+                     charset='utf8mb4',
+                     cursorclass=pymysql.cursors.DictCursor)
+
+        try:
+            with connection.cursor() as cursor:
+                # Create a new record
+                sql = "UPDATE patients SET firstname='{}', lastname='{}', email='{}' WHERE id={}".format(self.firstnamebox.get(),
+                                                                                                   self.lastnamebox.get(),
+                                                                                                   self.emailbox.get(),
+                                                                                                   self.pidbox.get())
+                cursor.execute(sql)                
+               
+            # connection is not autocommit by default. So you must commit to save
+            # your changes.
+            connection.commit()        
+
+        finally:
+            connection.close()
+        
+        self.firstnamebox.configure(state="readonly")
+        self.lastnamebox.configure(state="readonly")        
+        self.emailbox.configure(state="readonly")       
+        editlocked = True        
+        self.PopluateListBox()
+        
+        
+        
     
     def DeleteEntry(self):
         return("done")
         
     def CreateNewEntry(self):
-        return("done")
+        global editlocked
+        self.firstnamebox.configure(state="normal")
+        self.lastnamebox.configure(state="normal")        
+        self.emailbox.configure(state="normal")       
+        editlocked = False
+        
+        connection = pymysql.connect(host='localhost',
+                             user='rfid',
+                             password='rfid',
+                             db='patientdat',
+                             charset='utf8mb4',
+                             cursorclass=pymysql.cursors.DictCursor)
+        
+        try:
+            with connection.cursor() as cursor:
+                # Create a new record
+                sql = "INSERT INTO patients (firstname, lastname, email) VALUES ('blank', 'blank', 'blank')"
+                cursor.execute(sql)                
+                sql = "SELECT LAST_INSERT_ID();"
+                cursor.execute(sql)
+                result = cursor.fetchone()
+                #print(result['LAST_INSERT_ID()'])
+                #self.pidbox.delete(0, END)
+                self.pidbox.configure(state="normal")
+                self.pidbox.insert(0, result['LAST_INSERT_ID()'])       
+                self.pidbox.configure(state="readonly")        
+                
+            # connection is not autocommit by default. So you must commit to save
+            # your changes.
+            connection.commit()        
+
+        finally:
+            connection.close()
+        
+        
+        # might do a new patient creation popup box at some point. 
+        
         
 class ThreadedClient:
     def __init__(self, master):
