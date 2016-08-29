@@ -69,12 +69,22 @@ void loop(void) {
            }
           
         }
+        
+
+        
         else
         {
           Serial.println("no tag");      
         }
-           
+        
       }
+
+      
+      if(inputString.indexOf("whatis") >= 0){
+        Serial.println("rfid_read"); 
+      }
+
+      
       if(inputString.indexOf("connection_test") >= 0){
         Serial.write("ok");         
       }

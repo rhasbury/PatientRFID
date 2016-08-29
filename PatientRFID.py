@@ -4,7 +4,7 @@ import threading
 import time
 import queue
 import serial
-#import string
+import glob
 
 import sys
 #from tkinter.constants import VERTICAL
@@ -26,7 +26,7 @@ dbcharset='utf8mb4'
 editlocked = True
 
 
-serialPort = 'COM5'
+serialPort = None
 baud = 115200
 
 class Application(tk.Frame):
@@ -39,6 +39,13 @@ class Application(tk.Frame):
         self.pack()        
         self.createWidgets()
         self.serialmgr = serialmgr
+    
+    
+    def busy(self):
+        self.config(cursor="wait")
+
+    def notbusy(self):
+        self.config(cursor="")
         
 
     def createWidgets(self):
@@ -233,15 +240,47 @@ class Application(tk.Frame):
             
             try: 
                 msg = self.tagqueue.get(0)
+                found = False
                 #print("mesgreceived  {}".format(msg))               
-                self.uuid.config(text=msg) #, width=100)
+                #self.uuid.config(text=msg) #, width=100)
+                if(msg.isdigit()):
+                    pid = int(msg)
+                    connection = pymysql.connect(host='localhost',
+                             user='rfid',
+                             password='rfid',
+                             db='patientdat',
+                             charset='utf8mb4',
+                             cursorclass=pymysql.cursors.DictCursor)
+                    
+                    try:  
+                        with connection.cursor() as cursor: #
+                            print(pid)
+                            for listbox_entry in enumerate(self.pendingreglist.get(0, tk.END)):
+                                print(listbox_entry)
+                                if(listbox_entry[1].find("ID: {} ".format(pid)) >= 0):
+                                    found = True
+                                    print("found1")
+                                    break
 
-                
-            except:
-                # just on general principles, although we don't
-                # expect this branch to be taken in this case                
-                raise
-            
+                            for listbox_entry in enumerate(self.registeredlist.get(0, tk.END)):
+                                if(listbox_entry[1].find("ID: {} ".format(pid)) >= 0):
+                                    found = True
+                                    print("found2")
+                                    break
+                            
+                            if(found == False):
+                                sql = "SELECT * FROM patients WHERE id = {}".format(pid)
+                                cursor.execute(sql)
+                                result = cursor.fetchone()
+                                self.pendingreglist.insert(tk.END, "{}, {} ID: {} ".format(result['firstname'], result['lastname'], pid))
+                                #print(result)
+                        
+                    except:
+                        # just on general principles, although we don't
+                        # expect this branch to be taken in this case                
+                        raise
+            except ValueError:
+                pass
     
     def ActivateReading(self, event):
         if(event.widget.tab(event.widget.index("current"), "text") == "Read"):
@@ -252,6 +291,7 @@ class Application(tk.Frame):
             self.cmdqueue.put("Read Disabled")
 
     def WriteTag(self):
+        self.busy()
         result = self.serialmgr.WriteTag(self.pidbox.get().encode('utf-8'))        
         print("wrote: {}".format(self.pidbox.get().encode('utf-8')))
         if(result.find("Write Successful") >= 0):                                        
@@ -260,6 +300,7 @@ class Application(tk.Frame):
         else:
             self.statuslab["text"] = "Write failed"
             self.statuslab["foreground"] = "red"
+        self.notbusy()
         
             
     def WritePatientToCard(self):
@@ -275,7 +316,9 @@ class Application(tk.Frame):
             self.statuslab["fg"] = "red"
             
     def RegisterPatient(self):
-        return("done")    
+            self.registeredlist.insert(0, self.pendingreglist.get(tk.ACTIVE))
+            self.pendingreglist.delete(self.pendingreglist.index(tk.ACTIVE))
+            
 
     def SearchForPatient(self):
         self.PopluateListBox(self.searchentry.get())
@@ -311,7 +354,7 @@ class Application(tk.Frame):
 
         try:
             with connection.cursor() as cursor:
-                # Create a new record
+                
                 sql = "UPDATE patients SET firstname='{}', lastname='{}', email='{}' WHERE id={}".format(self.firstnamebox.get(),
                                                                                                    self.lastnamebox.get(),
                                                                                                    self.emailbox.get(),
@@ -362,8 +405,12 @@ class Application(tk.Frame):
                 #print(result['LAST_INSERT_ID()'])
                 #self.pidbox.delete(0, END)
                 self.pidbox.configure(state="normal")
+                self.pidbox.delete()
                 self.pidbox.insert(0, result['LAST_INSERT_ID()'])       
-                self.pidbox.configure(state="readonly")        
+                self.pidbox.configure(state="readonly")
+                self.firstnamebox.delete()
+                self.lastnamebox.delete()        
+                self.emailbox.delete()          
                 
             # connection is not autocommit by default. So you must commit to save
             # your changes.
@@ -408,7 +455,6 @@ class ThreadedClient:
         if not self.running:
             # This is the brutal stop of the system. You may want to do
             # some cleanup before actually shutting it down.
-            import sys
             sys.exit(1)
         self.master.after(200, self.periodicCall)
 
@@ -512,15 +558,81 @@ class SerialManager:
         self.ser.close()
 
 
+def serial_ports():
+    """ Lists serial port names
 
-root = tk.Tk()
-client = ThreadedClient(root)
+        :raises EnvironmentError:
+            On unsupported or unknown platforms
+        :returns:
+            A list of the serial ports available on the system
+    """
+    if sys.platform.startswith('win'):
+        ports = ['COM%s' % (i + 1) for i in range(256)]
+    elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
+        # this excludes your current terminal "/dev/tty"
+        ports = glob.glob('/dev/tty[A-Za-z]*')
+    elif sys.platform.startswith('darwin'):
+        ports = glob.glob('/dev/tty.*')
+    else:
+        raise EnvironmentError('Unsupported platform')
+
+    result = []
+    for port in ports:
+        try:
+            s = serial.Serial(port)
+            s.close()
+            result.append(port)
+        except (OSError, serial.SerialException):
+            pass
+    return result
+
 
 def on_closing():    
     client.endApplication()
     root.destroy()
 
-root.protocol("WM_DELETE_WINDOW", on_closing)
-root.mainloop(  )
-#app = Application(master=root)
-#app.mainloop()
+
+if __name__ == "__main__":
+
+
+    availableports = serial_ports()
+    
+    print(availableports)
+    
+    for port in availableports:
+        try:
+            ser = serial.Serial(port, baud, bytesize=8, parity='N', stopbits=1, timeout=1, rtscts=False, dsrdtr=False)
+            time.sleep(2)
+            ser.flushInput()               
+            ser.write(b'whatis\n')                   
+            time.sleep(0.5)
+            result = ser.readline()
+            print("Testing port {}".format(port))
+            if(result.find(b'rfid_read') >= 0):
+                serialPort = port
+                print("Found rfid reader on serial port {}".format(serialPort))
+                ser.close()
+                break
+            
+            ser.close()
+        except serial.SerialException:
+            print("Reader not found on port {}".format(port))
+            ser.close()
+        
+        except:            
+            ser.close()
+            raise
+
+    if(serialPort == None):
+        print("No reader found. Exiting")
+        exit()
+        
+        
+    root = tk.Tk()
+    client = ThreadedClient(root)
+    
+    
+    root.protocol("WM_DELETE_WINDOW", on_closing)
+    root.mainloop(  )
+    #app = Application(master=root)
+    #app.mainloop()
