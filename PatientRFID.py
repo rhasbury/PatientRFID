@@ -253,10 +253,8 @@ class Application(tk.Frame):
                              cursorclass=pymysql.cursors.DictCursor)
                     
                     try:  
-                        with connection.cursor() as cursor: #
-                            print(pid)
-                            for listbox_entry in enumerate(self.pendingreglist.get(0, tk.END)):
-                                print(listbox_entry)
+                        with connection.cursor() as cursor: #                            
+                            for listbox_entry in enumerate(self.pendingreglist.get(0, tk.END)):                                
                                 if(listbox_entry[1].find("ID: {} ".format(pid)) >= 0):
                                     found = True
                                     print("found1")
@@ -355,7 +353,7 @@ class Application(tk.Frame):
         try:
             with connection.cursor() as cursor:
                 
-                sql = "UPDATE patients SET firstname='{}', lastname='{}', email='{}' WHERE id={}".format(self.firstnamebox.get(),
+                sql = "UPDATE patients SET firstname='{}', lastname='{}', email='{}', last_updated=NOW() WHERE id={}".format(self.firstnamebox.get(),
                                                                                                    self.lastnamebox.get(),
                                                                                                    self.emailbox.get(),
                                                                                                    self.pidbox.get())
@@ -370,7 +368,8 @@ class Application(tk.Frame):
         
         self.firstnamebox.configure(state="readonly")
         self.lastnamebox.configure(state="readonly")        
-        self.emailbox.configure(state="readonly")       
+        self.emailbox.configure(state="readonly")     
+        self.writetagbutton.configure(state="normal")      
         editlocked = True        
         self.PopluateListBox()
         
@@ -384,7 +383,8 @@ class Application(tk.Frame):
         global editlocked
         self.firstnamebox.configure(state="normal")
         self.lastnamebox.configure(state="normal")        
-        self.emailbox.configure(state="normal")       
+        self.emailbox.configure(state="normal")
+        self.writetagbutton.configure(state="disabled")       
         editlocked = False
         
         connection = pymysql.connect(host='localhost',
@@ -397,7 +397,7 @@ class Application(tk.Frame):
         try:
             with connection.cursor() as cursor:
                 # Create a new record
-                sql = "INSERT INTO patients (firstname, lastname, email) VALUES ('blank', 'blank', 'blank')"
+                sql = "INSERT INTO patients (firstname, lastname, email, last_updated) VALUES ('blank', 'blank', 'blank', NOW())"
                 cursor.execute(sql)                
                 sql = "SELECT LAST_INSERT_ID();"
                 cursor.execute(sql)
@@ -405,12 +405,13 @@ class Application(tk.Frame):
                 #print(result['LAST_INSERT_ID()'])
                 #self.pidbox.delete(0, END)
                 self.pidbox.configure(state="normal")
-                self.pidbox.delete()
+                self.pidbox.delete(0, tk.END)
                 self.pidbox.insert(0, result['LAST_INSERT_ID()'])       
                 self.pidbox.configure(state="readonly")
-                self.firstnamebox.delete()
-                self.lastnamebox.delete()        
-                self.emailbox.delete()          
+                self.firstnamebox.delete(0, tk.END)
+                self.lastnamebox.delete(0, tk.END)        
+                self.emailbox.delete(0, tk.END)  
+                
                 
             # connection is not autocommit by default. So you must commit to save
             # your changes.
@@ -627,7 +628,10 @@ if __name__ == "__main__":
         print("No reader found. Exiting")
         exit()
         
-        
+    
+    
+    # insert check for Mysql connectivity
+      
     root = tk.Tk()
     client = ThreadedClient(root)
     
