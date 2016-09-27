@@ -602,7 +602,9 @@ if __name__ == "__main__":
     
     for port in availableports:
         try:
-            ser = serial.Serial(port, baud, bytesize=8, parity='N', stopbits=1, timeout=1, rtscts=False, dsrdtr=False)
+            ser = serial.Serial(port, baud, bytesize=8, parity='N', stopbits=1, timeout=1, rtscts=False, dsrdtr=False, write_timeout=2)
+            ser.dtr = True
+            ser.rts = True
             time.sleep(2)
             ser.flushInput()               
             ser.write(b'whatis\n')                   
