@@ -30,8 +30,6 @@ serialPort = None
 baud = 115200
 
 class Application(tk.Frame):
-    
-    
     def __init__(self, master, cmdqueue, tagqueue, endCommand, serialmgr):
         self.cmdqueue = cmdqueue
         self.tagqueue = tagqueue
@@ -40,13 +38,11 @@ class Application(tk.Frame):
         self.createWidgets()
         self.serialmgr = serialmgr
     
-    
     def busy(self):
         self.config(cursor="wait")
 
     def notbusy(self):
         self.config(cursor="")
-        
 
     def createWidgets(self):
         #ttk.Style().configure("TButton", padding=(0, 5, 0, 5), font='serif 10')
@@ -152,8 +148,6 @@ class Application(tk.Frame):
         
         
     def PopluateListBox(self, searchstring=None):
-                
-            
         connection = pymysql.connect(host='localhost',
                  user='rfid',
                  password='rfid',
