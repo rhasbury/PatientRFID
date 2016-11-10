@@ -5,6 +5,8 @@
 #include <NfcAdapter.h>
 #include <avr/wdt.h>
 
+#define redled A9
+#define greenled A10
 
 PN532_I2C pn532_i2c(Wire);
 NfcAdapter nfc = NfcAdapter(pn532_i2c);
@@ -13,10 +15,16 @@ String inputString = "";         // a string to hold incoming data
 //String tempString = "";         // a string to hold outgoing data
 boolean stringComplete = false;  // whether the string is complete
 
+int loopcount = 0;
 
 void setup(void) {
     wdt_disable();
     Serial.begin(115200);    
+    pinMode(redled, OUTPUT); 
+    pinMode(greenled, OUTPUT); 
+    //analogWrite(redled, 255);
+    //delay(2000);
+    //digitalWrite(redled, LOW);
     Serial.println("NDEF Reader");
     inputString.reserve(2000);
 //    tempString.reserve(200);
@@ -29,6 +37,7 @@ void setup(void) {
 void loop(void) {
     int success = 0;
     int colon = 0;
+    
     while (!Serial);
     while (Serial.available()) {
       //Serial.println("inloop");
@@ -82,17 +91,26 @@ void loop(void) {
             //String tempstring = String(payloadArray);
             Serial.write("Sucess:"); 
             Serial.write(payloadArray+3, record.getPayloadLength()-3);             
+            analogWrite(redled, 255);
            }
           
         }
-        
-
-        
         else
         {
           Serial.println("no tag");      
         }
         
+      }
+
+
+      if(inputString.indexOf("ledon") >= 0){
+        analogWrite(greenled, 255);
+        Serial.println("on");      
+      }
+
+      if(inputString.indexOf("ledoff") >= 0){
+        analogWrite(greenled, 0);
+        Serial.println("off");      
       }
       
       if(inputString.indexOf("whatis") >= 0){
@@ -110,7 +128,11 @@ void loop(void) {
 
 
 
-  
+  loopcount++;
+  if(loopcount > 30){
+    analogWrite(redled, 0);
+    loopcount = 0;
+  }
   delay(100);
   wdt_reset();
 }

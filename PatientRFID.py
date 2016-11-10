@@ -17,6 +17,7 @@ import pymysql.cursors
 
 
 
+
 dbhost='localhost'
 dbuser='rfid'
 dbpassword='rfid'
@@ -251,13 +252,15 @@ class Application(tk.Frame):
                             for listbox_entry in enumerate(self.pendingreglist.get(0, tk.END)):                                
                                 if(listbox_entry[1].find("ID: {} ".format(pid)) >= 0):
                                     found = True
-                                    print("found1")
+                                    #print("found1")
+                                    self.serialmgr.SetLed(True)
                                     break
 
                             for listbox_entry in enumerate(self.registeredlist.get(0, tk.END)):
                                 if(listbox_entry[1].find("ID: {} ".format(pid)) >= 0):
                                     found = True
-                                    print("found2")
+                                    self.serialmgr.SetLed(True)
+                                    #print("found2")
                                     break
                             
                             if(found == False):
@@ -265,6 +268,7 @@ class Application(tk.Frame):
                                 cursor.execute(sql)
                                 result = cursor.fetchone()
                                 self.pendingreglist.insert(tk.END, "{}, {} ID: {} ".format(result['firstname'], result['lastname'], pid))
+                                self.serialmgr.SetLed(True)
                                 #print(result)
                         
                     except:
@@ -462,6 +466,7 @@ class ThreadedClient:
         to yield control pretty regularly, by select or otherwise.
         """
         readenabled = 0
+        counter = 0 
         
         while self.running:
 
@@ -479,6 +484,12 @@ class ThreadedClient:
                 self.tagqueue.put(self.serialmgr.ReadTag())
                             
             self.gui.processIncoming( )
+            
+            if(counter > 3):
+                counter = 0
+                self.serialmgr.SetLed(False)
+            counter = counter + 1
+            
             time.sleep(0.2)
         
         
@@ -534,6 +545,17 @@ class SerialManager:
                 return "Write Successful"
             else:              
                 return "Write failed"
+        else:
+            return(b'Reader not connected')
+        
+    def SetLed(self, state):       
+        if (self.ConnectionTest()):        
+            self.ser.flushInput()
+            if(state):
+            
+                self.ser.write(b'ledon\n')
+            else:       
+                self.ser.write(b'ledoff\n')
         else:
             return(b'Reader not connected')
                            
