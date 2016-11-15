@@ -485,7 +485,7 @@ class ThreadedClient:
                             
             self.gui.processIncoming( )
             
-            if(counter > 3):
+            if(counter > 2):
                 counter = 0
                 self.serialmgr.SetLed(False)
             counter = counter + 1
